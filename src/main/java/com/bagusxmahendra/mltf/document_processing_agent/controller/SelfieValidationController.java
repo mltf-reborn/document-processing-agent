@@ -1,10 +1,7 @@
 package com.bagusxmahendra.mltf.document_processing_agent.controller;
 
-import com.bagusxmahendra.mltf.document_processing_agent.dto.DocumentProcessingRequest;
-import com.bagusxmahendra.mltf.document_processing_agent.dto.DocumentProcessingResponse;
 import com.bagusxmahendra.mltf.document_processing_agent.dto.SelfieValidationRequest;
 import com.bagusxmahendra.mltf.document_processing_agent.dto.SelfieValidationResponse;
-import com.bagusxmahendra.mltf.document_processing_agent.service.DocumentProcessingAgentService;
 import com.bagusxmahendra.mltf.document_processing_agent.service.SelfieValidationAgentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,92 +11,26 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 /**
- * Reactive REST Controller exposing document processing and selfie validation APIs.
+ * Dedicated REST Controller for selfie verification and facial comparison API.
+ * Exposes /api/v1/selfie, /api/v1/selfie/validation, and /api/v1/selfie/validate endpoints.
  */
 @RestController
-@RequestMapping("/api/v1/doc")
-public class DocumentProcessingController {
+@RequestMapping("/api/v1/selfie")
+public class SelfieValidationController {
 
-    private static final Logger log = LoggerFactory.getLogger(DocumentProcessingController.class);
+    private static final Logger log = LoggerFactory.getLogger(SelfieValidationController.class);
 
-    private final DocumentProcessingAgentService documentProcessingAgentService;
     private final SelfieValidationAgentService selfieValidationAgentService;
 
-    public DocumentProcessingController(
-            DocumentProcessingAgentService documentProcessingAgentService,
-            SelfieValidationAgentService selfieValidationAgentService) {
-        this.documentProcessingAgentService = documentProcessingAgentService;
+    public SelfieValidationController(SelfieValidationAgentService selfieValidationAgentService) {
         this.selfieValidationAgentService = selfieValidationAgentService;
     }
 
     /**
-     * Primary endpoint: POST /api/v1/doc/processing with JSON payload.
-     * Also supports query parameters when body is omitted or partially specified.
+     * Primary endpoint: POST /api/v1/selfie/validation (or POST /api/v1/selfie)
      */
     @PostMapping(
-            value = "/processing",
-            consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.ALL_VALUE},
-            produces = MediaType.APPLICATION_JSON_VALUE
-    )
-    public Mono<ResponseEntity<DocumentProcessingResponse>> processDocumentPost(
-            @RequestBody(required = false) DocumentProcessingRequest requestBody,
-            @RequestParam(name = "gcsUrl", required = false) String gcsUrlParam,
-            @RequestParam(name = "gcs_url", required = false) String gcsUrlSnakeParam,
-            @RequestParam(name = "mimeType", required = false) String mimeTypeParam,
-            @RequestParam(name = "documentType", required = false) String documentTypeParam,
-            @RequestParam(name = "customPrompt", required = false) String customPromptParam
-    ) {
-        DocumentProcessingRequest effectiveRequest = resolveRequest(
-                requestBody,
-                gcsUrlParam != null ? gcsUrlParam : gcsUrlSnakeParam,
-                mimeTypeParam,
-                documentTypeParam,
-                customPromptParam
-        );
-
-        log.info("Received POST /api/v1/doc/processing for GCS URL: {}", effectiveRequest.getGcsUrl());
-
-        return documentProcessingAgentService.processDocument(effectiveRequest)
-                .map(ResponseEntity::ok);
-    }
-
-    /**
-     * Convenience GET endpoint: GET /api/v1/doc/processing?gcsUrl=gs://...
-     */
-    @GetMapping(
-            value = "/processing",
-            produces = MediaType.APPLICATION_JSON_VALUE
-    )
-    public Mono<ResponseEntity<DocumentProcessingResponse>> processDocumentGet(
-            @RequestParam(name = "gcsUrl", required = false) String gcsUrlParam,
-            @RequestParam(name = "gcs_url", required = false) String gcsUrlSnakeParam,
-            @RequestParam(name = "mimeType", required = false) String mimeTypeParam,
-            @RequestParam(name = "documentType", required = false) String documentTypeParam,
-            @RequestParam(name = "customPrompt", required = false) String customPromptParam
-    ) {
-        String url = gcsUrlParam != null ? gcsUrlParam : gcsUrlSnakeParam;
-        if (url == null || url.trim().isEmpty()) {
-            return Mono.error(new IllegalArgumentException("Query parameter 'gcsUrl' or 'gcs_url' is required"));
-        }
-
-        DocumentProcessingRequest request = new DocumentProcessingRequest(
-                url.trim(),
-                mimeTypeParam,
-                documentTypeParam,
-                customPromptParam
-        );
-
-        log.info("Received GET /api/v1/doc/processing for GCS URL: {}", request.getGcsUrl());
-
-        return documentProcessingAgentService.processDocument(request)
-                .map(ResponseEntity::ok);
-    }
-
-    /**
-     * Selfie Validation endpoint: POST /api/v1/doc/selfie-validation
-     */
-    @PostMapping(
-            value = {"/selfie-validation", "/validate-selfie"},
+            value = {"", "/validation", "/validate"},
             consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.ALL_VALUE},
             produces = MediaType.APPLICATION_JSON_VALUE
     )
@@ -119,7 +50,7 @@ public class DocumentProcessingController {
             @RequestParam(name = "selfie_mime_type", required = false) String selfieMimeTypeSnakeParam,
             @RequestParam(name = "customPrompt", required = false) String customPromptParam
     ) {
-        SelfieValidationRequest effectiveRequest = resolveSelfieRequest(
+        SelfieValidationRequest effectiveRequest = resolveRequest(
                 requestBody,
                 firstNonNull(idDocUrlParam, idDocUrlSnakeParam, idGcsUrlParam, idGcsUrlSnakeParam),
                 firstNonNull(selfieUrlParam, selfieUrlSnakeParam, selfieGcsUrlParam, selfieGcsUrlSnakeParam),
@@ -128,7 +59,7 @@ public class DocumentProcessingController {
                 customPromptParam
         );
 
-        log.info("Received POST /api/v1/doc/selfie-validation for ID: [{}], Selfie: [{}]",
+        log.info("Received POST /api/v1/selfie/validation for ID: [{}], Selfie: [{}]",
                 effectiveRequest.getIdDocumentUrl(), effectiveRequest.getSelfieUrl());
 
         return selfieValidationAgentService.validateSelfie(effectiveRequest)
@@ -136,10 +67,10 @@ public class DocumentProcessingController {
     }
 
     /**
-     * Convenience GET endpoint: GET /api/v1/doc/selfie-validation?idDocumentUrl=...&selfieUrl=...
+     * Convenience GET endpoint: GET /api/v1/selfie/validation?idDocumentUrl=...&selfieUrl=...
      */
     @GetMapping(
-            value = {"/selfie-validation", "/validate-selfie"},
+            value = {"", "/validation", "/validate"},
             produces = MediaType.APPLICATION_JSON_VALUE
     )
     public Mono<ResponseEntity<SelfieValidationResponse>> validateSelfieGet(
@@ -175,38 +106,13 @@ public class DocumentProcessingController {
                 customPromptParam
         );
 
-        log.info("Received GET /api/v1/doc/selfie-validation for ID: [{}], Selfie: [{}]", idUrl, selfieUrl);
+        log.info("Received GET /api/v1/selfie/validation for ID: [{}], Selfie: [{}]", idUrl, selfieUrl);
 
         return selfieValidationAgentService.validateSelfie(request)
                 .map(ResponseEntity::ok);
     }
 
-    private DocumentProcessingRequest resolveRequest(
-            DocumentProcessingRequest body,
-            String gcsUrlParam,
-            String mimeTypeParam,
-            String documentTypeParam,
-            String customPromptParam
-    ) {
-        DocumentProcessingRequest req = body != null ? body : new DocumentProcessingRequest();
-
-        if ((req.getGcsUrl() == null || req.getGcsUrl().isBlank()) && gcsUrlParam != null && !gcsUrlParam.isBlank()) {
-            req.setGcsUrl(gcsUrlParam.trim());
-        }
-        if ((req.getMimeType() == null || req.getMimeType().isBlank()) && mimeTypeParam != null && !mimeTypeParam.isBlank()) {
-            req.setMimeType(mimeTypeParam.trim());
-        }
-        if ((req.getDocumentType() == null || req.getDocumentType().isBlank()) && documentTypeParam != null && !documentTypeParam.isBlank()) {
-            req.setDocumentType(documentTypeParam.trim());
-        }
-        if ((req.getCustomPrompt() == null || req.getCustomPrompt().isBlank()) && customPromptParam != null && !customPromptParam.isBlank()) {
-            req.setCustomPrompt(customPromptParam.trim());
-        }
-
-        return req;
-    }
-
-    private SelfieValidationRequest resolveSelfieRequest(
+    private SelfieValidationRequest resolveRequest(
             SelfieValidationRequest body,
             String idDocUrlParam,
             String selfieUrlParam,

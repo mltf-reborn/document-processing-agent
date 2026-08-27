@@ -1,6 +1,7 @@
 package com.bagusxmahendra.mltf.document_processing_agent.exception;
 
 import com.bagusxmahendra.mltf.document_processing_agent.dto.DocumentProcessingResponse;
+import com.bagusxmahendra.mltf.document_processing_agent.dto.SelfieValidationResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,17 @@ public class GlobalExceptionHandler {
         log.error("Document processing error for URL [{}]: {}", ex.getGcsUrl(), ex.getMessage(), ex);
         DocumentProcessingResponse response = DocumentProcessingResponse.error(
                 ex.getGcsUrl(),
+                ex.getMessage()
+        );
+        return Mono.just(ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(response));
+    }
+
+    @ExceptionHandler(SelfieValidationException.class)
+    public Mono<ResponseEntity<SelfieValidationResponse>> handleSelfieValidationException(SelfieValidationException ex) {
+        log.error("Selfie validation error for ID [{}] and Selfie [{}]: {}", ex.getIdDocumentUrl(), ex.getSelfieUrl(), ex.getMessage(), ex);
+        SelfieValidationResponse response = SelfieValidationResponse.error(
+                ex.getIdDocumentUrl(),
+                ex.getSelfieUrl(),
                 ex.getMessage()
         );
         return Mono.just(ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(response));
@@ -48,10 +60,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public Mono<ResponseEntity<DocumentProcessingResponse>> handleGenericException(Exception ex) {
-        log.error("Unexpected error occurred during document processing: {}", ex.getMessage(), ex);
+        log.error("Unexpected error occurred: {}", ex.getMessage(), ex);
         DocumentProcessingResponse response = DocumentProcessingResponse.error(
                 null,
-                "An internal server error occurred while processing the document: " + ex.getMessage()
+                "An internal server error occurred: " + ex.getMessage()
         );
         return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response));
     }
