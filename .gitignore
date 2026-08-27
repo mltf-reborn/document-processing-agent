@@ -35,3 +35,17 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Secrets & Local Configs (Do NOT commit to Git/GitHub) ###
+.env
+.env.*
+*.env
+application-local.properties
+application-secret.properties
+application-dev.properties
+**/src/main/resources/application-local.properties
+**/src/main/resources/application-secret.properties
+**/src/main/resources/application-dev.properties
+*secret*
+*credential*
+*.key
