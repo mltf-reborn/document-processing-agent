@@ -32,3 +32,56 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+abstract class MinikubeDeployTask extends DefaultTask {
+	@javax.inject.Inject
+	abstract org.gradle.process.ExecOperations getExecOperations()
+
+	@TaskAction
+	def deploy() {
+		def version = project.version.toString()
+
+		println ">>> [1/3] Building Docker image directly in Minikube's Docker daemon..."
+		execOperations.exec {
+			commandLine 'sh', '-c', "eval \"\$(minikube docker-env)\" && docker build --build-arg VERSION=${version} -t document-processing-agent:${version} -t document-processing-agent:latest ."
+		}
+
+		println ">>> [2/3] Applying Kubernetes manifests from k8s/..."
+		execOperations.exec {
+			commandLine 'kubectl', 'apply', '-k', 'k8s', '--server-side', '--force-conflicts'
+		}
+
+		println ">>> [3/3] Waiting for document-processing-agent deployment rollout..."
+		execOperations.exec {
+			commandLine 'kubectl', 'rollout', 'status', 'deployment/document-processing-agent', '--timeout=180s'
+		}
+
+		println "\nMinikube Service URL:"
+		execOperations.exec {
+			commandLine 'minikube', 'service', 'document-processing-agent', '--url'
+		}
+	}
+}
+
+abstract class MinikubeUndeployTask extends DefaultTask {
+	@javax.inject.Inject
+	abstract org.gradle.process.ExecOperations getExecOperations()
+
+	@TaskAction
+	def undeploy() {
+		execOperations.exec {
+			commandLine 'kubectl', 'delete', '-k', 'k8s', '--ignore-not-found=true'
+		}
+	}
+}
+
+tasks.register('minikubeDeploy', MinikubeDeployTask) {
+	group = 'deployment'
+	description = 'Builds the Docker image in Minikube, applies k8s manifests, and waits for rollout.'
+	dependsOn 'bootJar'
+}
+
+tasks.register('minikubeUndeploy', MinikubeUndeployTask) {
+	group = 'deployment'
+	description = 'Deletes document-processing-agent resources from Minikube.'
+}
