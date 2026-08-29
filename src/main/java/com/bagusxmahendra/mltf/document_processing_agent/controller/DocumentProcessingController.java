@@ -6,6 +6,9 @@ import com.bagusxmahendra.mltf.document_processing_agent.dto.SelfieValidationReq
 import com.bagusxmahendra.mltf.document_processing_agent.dto.SelfieValidationResponse;
 import com.bagusxmahendra.mltf.document_processing_agent.service.DocumentProcessingAgentService;
 import com.bagusxmahendra.mltf.document_processing_agent.service.SelfieValidationAgentService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -24,12 +27,16 @@ public class DocumentProcessingController {
 
     private final DocumentProcessingAgentService documentProcessingAgentService;
     private final SelfieValidationAgentService selfieValidationAgentService;
+    private final ObjectMapper objectMapper;
 
     public DocumentProcessingController(
             DocumentProcessingAgentService documentProcessingAgentService,
             SelfieValidationAgentService selfieValidationAgentService) {
         this.documentProcessingAgentService = documentProcessingAgentService;
         this.selfieValidationAgentService = selfieValidationAgentService;
+        this.objectMapper = new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     /**
@@ -57,10 +64,13 @@ public class DocumentProcessingController {
                 customPromptParam
         );
 
-        log.info("Received POST /api/v1/doc/processing for GCS URL: {}", effectiveRequest.getGcsUrl());
+        log.info(">>> [REQUEST] POST /api/v1/doc/processing\nPayload: {}", toJson(effectiveRequest));
 
         return documentProcessingAgentService.processDocument(effectiveRequest)
-                .map(ResponseEntity::ok);
+                .map(ResponseEntity::ok)
+                .doOnSuccess(response -> log.info("<<< [RESPONSE] POST /api/v1/doc/processing (HTTP {})\nBody: {}",
+                        response.getStatusCode(), toJson(response.getBody())))
+                .doOnError(err -> log.error("<<< [RESPONSE ERROR] POST /api/v1/doc/processing failed: {}", err.getMessage(), err));
     }
 
     /**
@@ -79,6 +89,7 @@ public class DocumentProcessingController {
     ) {
         String url = gcsUrlParam != null ? gcsUrlParam : gcsUrlSnakeParam;
         if (url == null || url.trim().isEmpty()) {
+            log.warn(">>> [REQUEST] GET /api/v1/doc/processing - Missing required 'gcsUrl' or 'gcs_url' query parameter");
             return Mono.error(new IllegalArgumentException("Query parameter 'gcsUrl' or 'gcs_url' is required"));
         }
 
@@ -89,10 +100,13 @@ public class DocumentProcessingController {
                 customPromptParam
         );
 
-        log.info("Received GET /api/v1/doc/processing for GCS URL: {}", request.getGcsUrl());
+        log.info(">>> [REQUEST] GET /api/v1/doc/processing\nParams: {}", toJson(request));
 
         return documentProcessingAgentService.processDocument(request)
-                .map(ResponseEntity::ok);
+                .map(ResponseEntity::ok)
+                .doOnSuccess(response -> log.info("<<< [RESPONSE] GET /api/v1/doc/processing (HTTP {})\nBody: {}",
+                        response.getStatusCode(), toJson(response.getBody())))
+                .doOnError(err -> log.error("<<< [RESPONSE ERROR] GET /api/v1/doc/processing failed: {}", err.getMessage(), err));
     }
 
     /**
@@ -233,6 +247,17 @@ public class DocumentProcessingController {
         }
 
         return req;
+    }
+
+    private String toJson(Object obj) {
+        if (obj == null) {
+            return "null";
+        }
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(obj);
+        } catch (Exception e) {
+            return String.valueOf(obj);
+        }
     }
 
     @SafeVarargs
