@@ -49,7 +49,7 @@ public class DocumentPromptProvider {
     }
 
     public String buildUserPrompt(String customInstructions) {
-        StringBuilder sb = new StringBuilder("Please thoroughly analyze this document for pixel-level tampering, extract all dynamic key-value pairs, and calculate authenticity/confidence scores.");
+        StringBuilder sb = new StringBuilder("Please thoroughly analyze this document for pixel-level tampering, extract all dynamic key-value pairs visibly present in the document, and calculate authenticity/confidence scores.\n\nCRITICAL ANTI-HALLUCINATION: Strictly extract ONLY values that are visibly present in the document. Do NOT hallucinate, infer, guess, or fabricate any non-existent values or fields. When a value cannot be found or is not present, send NULL or an empty string \"\" (or omit it); do NOT put any other value or placeholder.");
         if (customInstructions != null && !customInstructions.trim().isEmpty()) {
             sb.append("\n\nAdditional user guidelines:\n").append(customInstructions.trim());
         }
