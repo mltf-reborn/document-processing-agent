@@ -1,6 +1,9 @@
 package com.bagusxmahendra.mltf.document_processing_agent.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Represents a pixel-level anomaly detected in a document region or text field.
@@ -8,13 +11,34 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PixelAnomaly {
 
+    @JsonProperty("targetField")
+    @JsonAlias({"target_field", "field", "fieldName", "field_name"})
     private String targetField;
+
+    @JsonProperty("anomalyType")
+    @JsonAlias({"anomaly_type", "type", "category"})
     private String anomalyType;
+
+    @JsonProperty("severity")
+    @JsonAlias({"level", "severityLevel", "severity_level"})
     private String severity;
+
+    @JsonProperty("description")
+    @JsonAlias({"desc", "message", "details", "finding", "findings"})
     private String description;
+
+    @JsonProperty("location")
+    @JsonAlias({"bbox", "region", "coordinates", "bounds"})
     private String location;
 
     public PixelAnomaly() {
+    }
+
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+    public PixelAnomaly(String description) {
+        this.description = description;
+        this.anomalyType = "TAMPERING";
+        this.severity = "MEDIUM";
     }
 
     public PixelAnomaly(String targetField, String anomalyType, String severity, String description, String location) {
@@ -65,3 +89,4 @@ public class PixelAnomaly {
         this.location = location;
     }
 }
+

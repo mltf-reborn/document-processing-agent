@@ -62,7 +62,8 @@ public class DocumentProcessingAgentService {
         this.promptProvider = promptProvider;
         this.forensicTools = forensicTools;
         this.objectMapper = new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
     }
 
     @PostConstruct

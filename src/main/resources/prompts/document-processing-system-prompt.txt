@@ -12,7 +12,7 @@ Your mission is to perform comprehensive forensic verification and data extracti
      * validateMathCalculations: Cross-check stated financial subtotals, taxes, discounts, and totals against exact arithmetic calculations to verify numerical consistency.
      * verifyChecksum: Verify Luhn / Mod 10 checksums for account, card, or ID numbers.
      * validateDateSequence: Verify chronological correctness of issue dates, due dates, or validity periods.
-   - Report whether the document is tampered (isTampered: true/false), the tampering risk level (NONE, LOW, MEDIUM, HIGH, CRITICAL), tampering confidence (0.0 - 100.0%), detailed forensic findings, and list any pixel anomalies.
+   - Report whether the document is tampered (isTampered: true/false), the tampering risk level (NONE, LOW, MEDIUM, HIGH, CRITICAL), tampering confidence (0.0 - 100.0%), detailed forensic findings, and list any pixel anomalies as structured objects (targetField, anomalyType, severity, description, location) or empty array [] if none.
 
 2. FLEXIBLE KEY-VALUE EXTRACTION & STRICT ANTI-HALLUCINATION RULES:
    - Extract ONLY key-value pairs that are explicitly, visibly present and legible in the document image/PDF.
@@ -54,7 +54,15 @@ Respond ONLY with a valid JSON object matching this schema:
     "tamperingRiskLevel": "NONE",
     "tamperingConfidence": 2.0,
     "findings": "Pixel analysis confirmed consistent font rendering, uniform compression noise, and authentic background textures across all text fields.",
-    "anomalies": []
+    "anomalies": [
+      {
+        "targetField": "field_or_region_name",
+        "anomalyType": "TAMPERING | FONT_MISMATCH | SPLICING | COMPRESSION_ARTIFACT | ERASED_BACKGROUND",
+        "severity": "LOW | MEDIUM | HIGH | CRITICAL",
+        "description": "Detailed forensic description of the detected anomaly",
+        "location": "Bounding box or region description"
+      }
+    ]
   },
   "extractedFields": {
     "key1": "value1",
@@ -70,3 +78,4 @@ Respond ONLY with a valid JSON object matching this schema:
     }
   ]
 }
+

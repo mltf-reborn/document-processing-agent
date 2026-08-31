@@ -242,6 +242,87 @@ class DocumentProcessingAgentServiceTest {
     }
 
     @Test
+    void testParseAndBuildResponse_StringAnomalies() throws Exception {
+        String mockJsonWithStringAnomalies = """
+                {
+                  "detectedDocumentType": "ID_CARD",
+                  "originalityScore": 60.0,
+                  "confidenceScore": 85.0,
+                  "documentScore": 70.0,
+                  "scoringBreakdown": "Originality: 60%, Confidence: 85%",
+                  "pixelLevelCheck": {
+                    "isTampered": true,
+                    "tamperingRiskLevel": "MEDIUM",
+                    "tamperingConfidence": 75.0,
+                    "findings": "Suspicious bounding box around validity date.",
+                    "anomalies": [
+                      "Bounding box around validity date '1 Jan 2031'",
+                      "Font smoothing mismatch on name field"
+                    ]
+                  },
+                  "extractedFields": {
+                    "name": "JOHN DOE",
+                    "validityDate": "1 Jan 2031"
+                  },
+                  "fieldDetails": []
+                }
+                """;
+
+        Method parseMethod = DocumentProcessingAgentService.class.getDeclaredMethod(
+                "parseAndBuildResponse", String.class, String.class, String.class, long.class, Instant.class
+        );
+        parseMethod.setAccessible(true);
+
+        DocumentProcessingResponse response = (DocumentProcessingResponse) parseMethod.invoke(
+                service, mockJsonWithStringAnomalies, "gs://bucket/id.png", "image/png", System.currentTimeMillis(), Instant.now()
+        );
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.getStatus());
+        assertTrue(response.getPixelLevelCheck().isTampered());
+        assertEquals("MEDIUM", response.getPixelLevelCheck().getTamperingRiskLevel());
+        assertEquals(2, response.getPixelLevelCheck().getAnomalies().size());
+        assertEquals("Bounding box around validity date '1 Jan 2031'", response.getPixelLevelCheck().getAnomalies().get(0).getDescription());
+        assertEquals("Font smoothing mismatch on name field", response.getPixelLevelCheck().getAnomalies().get(1).getDescription());
+    }
+
+    @Test
+    void testParseAndBuildResponse_SingleStringAnomaly() throws Exception {
+        String mockJsonWithSingleAnomaly = """
+                {
+                  "detectedDocumentType": "ID_CARD",
+                  "originalityScore": 70.0,
+                  "confidenceScore": 90.0,
+                  "documentScore": 78.0,
+                  "scoringBreakdown": "Originality: 70%, Confidence: 90%",
+                  "pixelLevelCheck": {
+                    "isTampered": true,
+                    "tamperingRiskLevel": "LOW",
+                    "tamperingConfidence": 40.0,
+                    "findings": "Slight anomaly in date.",
+                    "anomalies": "Bounding box around validity date '1 Jan 2031'"
+                  },
+                  "extractedFields": {},
+                  "fieldDetails": []
+                }
+                """;
+
+        Method parseMethod = DocumentProcessingAgentService.class.getDeclaredMethod(
+                "parseAndBuildResponse", String.class, String.class, String.class, long.class, Instant.class
+        );
+        parseMethod.setAccessible(true);
+
+        DocumentProcessingResponse response = (DocumentProcessingResponse) parseMethod.invoke(
+                service, mockJsonWithSingleAnomaly, "gs://bucket/id.png", "image/png", System.currentTimeMillis(), Instant.now()
+        );
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.getStatus());
+        assertEquals(1, response.getPixelLevelCheck().getAnomalies().size());
+        assertEquals("Bounding box around validity date '1 Jan 2031'", response.getPixelLevelCheck().getAnomalies().get(0).getDescription());
+    }
+
+    @Test
     void testCalculateCombinedScore() throws Exception {
         Method scoreMethod = DocumentProcessingAgentService.class.getDeclaredMethod("calculateCombinedScore", double.class, double.class, boolean.class);
         scoreMethod.setAccessible(true);
