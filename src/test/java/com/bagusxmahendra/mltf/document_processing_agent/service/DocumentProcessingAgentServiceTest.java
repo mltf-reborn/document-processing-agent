@@ -160,6 +160,66 @@ class DocumentProcessingAgentServiceTest {
     }
 
     @Test
+    void testParseAndBuildResponse_BankStatementTransactions() throws Exception {
+        String mockBankStatementJson = """
+                {
+                  "detectedDocumentType": "BANK_STATEMENT",
+                  "originalityScore": 99.0,
+                  "confidenceScore": 98.0,
+                  "documentScore": 98.6,
+                  "scoringBreakdown": "Originality: 99%, Confidence: 98%",
+                  "pixelLevelCheck": {
+                    "isTampered": false,
+                    "tamperingRiskLevel": "NONE",
+                    "tamperingConfidence": 0.0,
+                    "findings": "Consistent pixel rendering across all transaction rows.",
+                    "anomalies": []
+                  },
+                  "extractedFields": {
+                    "bankName": "Bank ABC",
+                    "accountNumber": "1234567890",
+                    "transaction1": "20250801#transaction desctiption1#4500",
+                    "transaction2": "20250801#transaction desctiption2#300"
+                  },
+                  "fieldDetails": [
+                    {
+                      "key": "transaction1",
+                      "value": "20250801#transaction desctiption1#4500",
+                      "confidence": 0.99,
+                      "isSuspicious": false,
+                      "notes": "Transaction row 1"
+                    },
+                    {
+                      "key": "transaction2",
+                      "value": "20250801#transaction desctiption2#300",
+                      "confidence": 0.98,
+                      "isSuspicious": false,
+                      "notes": "Transaction row 2"
+                    }
+                  ]
+                }
+                """;
+
+        Method parseMethod = DocumentProcessingAgentService.class.getDeclaredMethod(
+                "parseAndBuildResponse", String.class, String.class, String.class, long.class, Instant.class
+        );
+        parseMethod.setAccessible(true);
+
+        DocumentProcessingResponse response = (DocumentProcessingResponse) parseMethod.invoke(
+                service, mockBankStatementJson, "gs://bucket/bank_statement.pdf", "application/pdf", System.currentTimeMillis(), Instant.now()
+        );
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.getStatus());
+        assertEquals("BANK_STATEMENT", response.getDetectedDocumentType());
+        assertEquals("Bank ABC", response.getExtractedFields().get("bankName"));
+        assertEquals("1234567890", response.getExtractedFields().get("accountNumber"));
+        assertEquals("20250801#transaction desctiption1#4500", response.getExtractedFields().get("transaction1"));
+        assertEquals("20250801#transaction desctiption2#300", response.getExtractedFields().get("transaction2"));
+        assertEquals(2, response.getFieldDetails().size());
+    }
+
+    @Test
     void testInit_InitializesAgentAndRunner() throws Exception {
         properties.setApiKey("test-api-key");
         service.init();
